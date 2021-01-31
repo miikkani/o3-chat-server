@@ -4,8 +4,7 @@
 .project
 .settings/
 
-# data.txt from pre-assignment
-data.txt
+
 
 # from github/gitignore
 # vscode.gitignore
