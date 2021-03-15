@@ -5,78 +5,120 @@ import com.sun.net.httpserver.HttpExchange;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 
 public class ChatHandler implements HttpHandler {
     private ArrayList<String> messages = new ArrayList<String>();
 
-        //test
 
     public void handle(HttpExchange ex) {
-        if(ex.getRequestMethod().equalsIgnoreCase("GET")) {
+        try {
             StringBuffer msgBody = new StringBuffer();
-            for(String s: messages) {
-                msgBody.append(s);
-                msgBody.append("\n");
+
+            int res_code = 200;
+
+
+            /**
+             * Handle GET 
+             */
+            if(ex.getRequestMethod().equalsIgnoreCase("GET")) {
+                for(String s: messages) {
+                    msgBody.append(s);
+                    msgBody.append("\n");
+                }
+
+                // set response headers to utf8
+                ex.getResponseHeaders().set("Content-Type", 
+                                            "text/plain; charset=utf-8");
+
+
+                ex.sendResponseHeaders(200, msgBody
+                                            .toString()
+                                            .getBytes("UTF-8").length);
+
+                writeResponse(msgBody.toString(), ex.getResponseBody());
+
+
+
+
+
+            /**
+             * Handle POST 
+             */
+            } else if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
+                String text = readBody(ex.getRequestBody());
+
+
+                if(!text.isEmpty()) {
+                    messages.add(text);
+                    ex.sendResponseHeaders(res_code, -1);
+                } else {
+                    res_code = 400;
+                    msgBody.append("Empty message.");
+                    ex.sendResponseHeaders(res_code,
+                                           msgBody.toString()
+                                           .getBytes("UTF-8").length);
+
+                    writeResponse(msgBody.toString(), ex.getResponseBody());
+
+                }
+
+
+
+
+
+            /**
+             * Handle everything else 
+             */
+            } else {
+                msgBody.append("Sorry, only tea here..");
+                ex.sendResponseHeaders(418, msgBody.toString().getBytes().length);
+                writeResponse(msgBody.toString(), ex.getResponseBody());
             }
-            // set response headers to utf8
-             ex.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
 
+        } catch (IOException e){
+            e.printStackTrace();
 
-            try { 
-                ex.sendResponseHeaders(200, msgBody.toString().getBytes("UTF-8").length);
-
-                BufferedWriter w = new BufferedWriter(new OutputStreamWriter(ex.getResponseBody(), StandardCharsets.UTF_8));
-                w.write(msgBody.toString());
-                w.close();
-
-            } catch(IOException e) {
-                e.printStackTrace();
-                System.out.println("\n\nTULI ERRORI! TERRORI!\n\n");
-
-
-            }
-        } else if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
-            try {
-                InputStream stream = ex.getRequestBody();
-                String text = new BufferedReader(
-                                    new InputStreamReader(stream,
-                                                            StandardCharsets.UTF_8))
-                                                            .lines()
-                                                            .collect(Collectors.joining("\n"));
-                if(!text.isEmpty()) messages.add(text);
-                stream.close();
-
-                ex.sendResponseHeaders(200, -1);
-
-            } catch(Exception e){
-                e.printStackTrace();
-                System.out.println("\nVIESTIN LUKU FEILI! VOI VOI..\n\n");
-            }
-
-
-
-        } else {
-            try {
-                StringBuffer body = new StringBuffer();
-                body.append(ex.getRequestMethod() + " is not supported..");
-                ex.sendResponseHeaders(400, body.toString().getBytes().length);
-
-                BufferedWriter w = new BufferedWriter(new OutputStreamWriter(ex.getResponseBody()));
-                w.write(body.toString());
-                w.close();
-
-            } catch(Exception e){
-                e.printStackTrace();
-                System.out.println("\nTUULETTIMEEN MENI!!\n\n");
-            }
+            System.out.println("I/O virhe.");
         }
     }
     
+    /**
+     * Return request body as a String
+     * @return body
+     */
+    public String readBody(InputStream stream) throws IOException {
+        String body = new BufferedReader(
+                        new InputStreamReader(
+                            stream, 
+                            StandardCharsets.UTF_8))
+                            .lines()
+                            .collect(Collectors.joining("\n"));
+
+        return body;
+    }
+
+    /**
+     * Write response body.
+     */
+    public void writeResponse(String body, OutputStream stream) throws IOException {
+
+        BufferedWriter w =  new BufferedWriter(
+                            new OutputStreamWriter(
+                                stream, StandardCharsets.UTF_8));
+
+        w.write(body);
+        w.close();
+
+    }
+
+
+
 }
