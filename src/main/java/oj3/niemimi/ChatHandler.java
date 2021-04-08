@@ -53,7 +53,7 @@ public class ChatHandler implements HttpHandler {
              * Handle POST 
              */
             } else if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
-                String text = readBody(ex.getRequestBody());
+                String text = readRequestBody(ex.getRequestBody());
 
 
                 if(!text.isEmpty()) {
@@ -86,7 +86,7 @@ public class ChatHandler implements HttpHandler {
         } catch (IOException e){
             e.printStackTrace();
 
-            System.out.println("I/O virhe.");
+            System.out.println("I/O error.");
         }
     }
     
@@ -94,7 +94,7 @@ public class ChatHandler implements HttpHandler {
      * Return request body as a String
      * @return body
      */
-    public String readBody(InputStream stream) throws IOException {
+    public String readRequestBody(InputStream stream) throws IOException {
         String body = new BufferedReader(
                         new InputStreamReader(
                             stream, 

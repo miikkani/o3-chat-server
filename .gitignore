@@ -8,6 +8,7 @@
 
 # from github/gitignore
 # vscode.gitignore
+.vscode/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
