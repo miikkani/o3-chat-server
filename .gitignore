@@ -3,7 +3,8 @@
 .classpath
 .project
 .settings/
-
+passphrase.txt
+out.txt
 
 
 # from github/gitignore
