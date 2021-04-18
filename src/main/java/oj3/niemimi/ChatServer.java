@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpContext;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.http.HttpConnectTimeoutException;
 import java.security.KeyStore;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -17,16 +18,30 @@ import javax.net.ssl.TrustManagerFactory;
 /**
  * Chatserver 
  *
+ * todo
+ * - readerclass to static or factory
+ * - proper logging (java built-in?)
+ * - error checking > userRegistration
+ * 
+ * 
+ * 
  */
 public class ChatServer {
     public static void main( String[] args ) {
         try {
-            HttpsServer server = HttpsServer.create(new InetSocketAddress(8001), 0);
+            HttpsServer server = HttpsServer.create(
+                                new InetSocketAddress(8001), 0);
             SSLContext sslContext = chatServerSSLContext();
 
             server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
                 public void configure(HttpsParameters params) {
                     InetSocketAddress remote = params.getClientAddress();
+
+                    // Logging
+                    System.out.println("Connection from: " + remote);
+                    // Logging
+
+
                     SSLContext c = getSSLContext();
                     SSLParameters sslparams = c.getDefaultSSLParameters();
                     params.setSSLParameters(sslparams);
@@ -34,15 +49,30 @@ public class ChatServer {
             });
 
 
+            // initialize authenicator for server
             ChatAuthenticator cauth = new ChatAuthenticator();
 
 
-            HttpContext context = server.createContext("/chat", new ChatHandler());
-            context.setAuthenticator(cauth);
+            /**
+             * create path: /chat
+             */
+            HttpContext chatContext = server.createContext(
+                                    "/chat", 
+                                    new ChatHandler());
+
+            chatContext.setAuthenticator(cauth);
+
+            /** 
+            * create path: /registration
+            */
+            HttpContext registrationContext = server.createContext(
+                                        "/registration",
+                                        new RegistrationHandler(cauth));
 
 
             server.setExecutor(null);
             server.start();
+
 
         } catch (IOException e) {
             e.printStackTrace();
