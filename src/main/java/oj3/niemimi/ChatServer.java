@@ -27,51 +27,45 @@ import javax.net.ssl.TrustManagerFactory;
  * 
  */
 public class ChatServer {
+    final static int PORT = 8001;
     public static void main( String[] args ) {
         try {
             HttpsServer server = HttpsServer.create(
-                                new InetSocketAddress(8001), 0);
+                                new InetSocketAddress(PORT), 0);
+            System.out.println("server port: " + PORT);
             SSLContext sslContext = chatServerSSLContext();
 
             server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
                 public void configure(HttpsParameters params) {
                     InetSocketAddress remote = params.getClientAddress();
-
-                    // Logging
-                    System.out.println("Connection from: " + remote);
-                    // Logging
-
-
+                    System.out.println(remote + " connected...");
                     SSLContext c = getSSLContext();
                     SSLParameters sslparams = c.getDefaultSSLParameters();
                     params.setSSLParameters(sslparams);
                 }
             });
 
-
-            // initialize authenicator for server
+            /* initialize authenicator for server */
             ChatAuthenticator cauth = new ChatAuthenticator();
 
-
-            /**
-             * create path: /chat
-             */
+             /* create path: /chat    */
             HttpContext chatContext = server.createContext(
                                     "/chat", 
                                     new ChatHandler());
 
             chatContext.setAuthenticator(cauth);
+            System.out.println("/chat context created...");
 
-            /** 
-            * create path: /registration
-            */
-            HttpContext registrationContext = server.createContext(
-                                        "/registration",
-                                        new RegistrationHandler(cauth));
+            /* create path: /registration    */
+            server.createContext(
+                "/registration",
+                new RegistrationHandler(cauth));
+            System.out.println("/registration context created...");
 
 
             server.setExecutor(null);
             server.start();
+            System.out.println("server started...");
 
 
         } catch (IOException e) {

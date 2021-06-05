@@ -14,6 +14,8 @@ public class ChatAuthenticator extends BasicAuthenticator{
     public ChatAuthenticator() {
         super("chat");
         users = new Hashtable<String,String>();
+
+        /* Test account */
         users.put("dummy","passwd");
     }
 
@@ -21,19 +23,24 @@ public class ChatAuthenticator extends BasicAuthenticator{
 
     /**
      * Checks user authentication.
-     * @return  a boolean answer whether authentication was successful.
+     * @return  true if authentication was successful
      */
     public boolean checkCredentials(String username, String password) {
+        boolean ok = false;
 
+        System.out.print("checkCredentials() >>" + 
+        " param: username |" + username +"|, " +
+        " param: password |" + password +"|, " +
+        " user exists: " + users.containsKey(username) +
+        ", password: |" + users.get(username) + "|, "
+        );
 
-        System.out.println("checking user: >" + username +"<");
-        System.out.println("exists: >" + users.containsKey(username) +"<");
-        System.out.println("password: >" + users.get(username) + "<");
-
-
-        return users.containsKey(username) 
+        ok = users.containsKey(username) 
                 && users.get(username).equals(password);
+        
+        System.out.println("\tuser authenticated: " + ok);
 
+        return ok;
     }
 
     /**
@@ -47,8 +54,11 @@ public class ChatAuthenticator extends BasicAuthenticator{
         boolean added = true;
         if(!users.containsKey(username)) {
             users.put(username, password);
-            System.out.println("user registered>" + username + "<>" + password + "<");
-            System.out.println("check " + username + ">" + users.containsKey(username));
+
+            System.out.println("addUser() >> |"
+                + username + "|"
+                + password + "|"
+                + " registered.");
         } else added = false; 
 
         return added;

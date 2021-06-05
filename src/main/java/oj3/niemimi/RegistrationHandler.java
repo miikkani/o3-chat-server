@@ -1,12 +1,10 @@
 package oj3.niemimi;
 
 
-import com.sun.net.httpserver.HttpHandler;
-
-import java.io.IOException;
-
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import java.net.HttpURLConnection;
+import java.io.IOException;
 
 public class RegistrationHandler implements HttpHandler {
     private ChatAuthenticator auth;
@@ -35,35 +33,35 @@ public class RegistrationHandler implements HttpHandler {
             if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
                 clientBody = reader.readBody();
 
-                //logging
-                System.out.println("User posted: " + clientBody);
-                //logging
+                /* Logging */
+                System.out.print("Reg_handler >> user posted |"
+                    + clientBody + "|");
 
                 account = clientBody.strip().split(":");
 
-                boolean hasWhiteSpaces = !(clientBody.strip().matches("\\S+"));
+                boolean hasInnerWhiteSpaces = !(clientBody.strip().matches("\\S+"));
 
-                //logging
-                System.out.println("hasWhiteSpaces: " + hasWhiteSpaces);
-                //logging
+                /* Logging */
+                System.out.print(" hasInnerWhiteSpaces: " + hasInnerWhiteSpaces);
 
-                //logging
+                /* Logging */
                 if(account.length == 2) {
-                    // System.out.println("true");
-                    System.out.println("Result of split >" + account[0] + "<>" + account[1] );
+                    System.out.println(" split: |"
+                        + account[0] + "|"
+                        + account[1] + "|");
+                } else {
+                    System.out.println(". tokens: " + account.length);
                 }
-                //logging
 
 
-                if(account.length != 2 || hasWhiteSpaces) {
+                if(account.length != 2 || hasInnerWhiteSpaces) {
                     resCode = HttpURLConnection.HTTP_BAD_REQUEST;
                 } else {
                     
-                //logging
-                    System.out.println("Trying to register:\n"
-                            +  ">" + account[0] + "<" + "\n" 
-                            + ">" + account[1] + "<" );
-                //logging
+                /* Logging */
+                    System.out.println("registering "
+                            + account[0] + ":" 
+                            + account[1]);
 
                     boolean success = auth.addUser( account[0], account[1]);
 
