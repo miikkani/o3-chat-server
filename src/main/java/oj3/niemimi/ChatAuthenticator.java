@@ -8,15 +8,16 @@ import com.sun.net.httpserver.BasicAuthenticator;
 
 
 public class ChatAuthenticator extends BasicAuthenticator{
-    private Map<String,String> users; 
+    private Map<String,User> users; 
 
 
     public ChatAuthenticator() {
         super("chat");
-        users = new Hashtable<String,String>();
+        users = new Hashtable<String,User>();
 
         /* Test account */
-        users.put("dummy","passwd");
+        users.put("dummy",
+            new User("dummy", "passwd" , "dummy@test.jp"));
     }
 
 
@@ -32,12 +33,14 @@ public class ChatAuthenticator extends BasicAuthenticator{
         " param: username |" + username +"|, " +
         " param: password |" + password +"|, " +
         " user exists: " + users.containsKey(username) +
-        ", password: |" + users.get(username) + "|, "
-        );
+        ", user object: |" + users.get(username));
 
-        ok = users.containsKey(username) 
-                && users.get(username).equals(password);
-        
+        User user = users.get(username);
+
+        if(user != null){
+            ok = user.getPassword().equals(password);
+        }
+
         System.out.println("\tuser authenticated: " + ok);
 
         return ok;
@@ -47,17 +50,20 @@ public class ChatAuthenticator extends BasicAuthenticator{
      * Registers user to server.
      * @param username      a string representing username 
      * @param password      a string representing password for the account
-     * @return              a boolean value whether registration 
-     *                      was successful
+     * @param email         email address for the user
+     * @return              true if successful
+     * 
      */
-    public boolean addUser(String username, String password) {
+    public boolean addUser(String username, String password, String email) {
+        User user = new User(username, password, email);
         boolean added = true;
         if(!users.containsKey(username)) {
-            users.put(username, password);
+            users.put(username, user);
 
             System.out.println("addUser() >> |"
                 + username + "|"
                 + password + "|"
+                + email + "|"
                 + " registered.");
         } else added = false; 
 

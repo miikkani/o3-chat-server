@@ -12,26 +12,25 @@ import java.io.BufferedReader;
  * This class implements a simple reader for http requestbody.
  * 
  */
-public class RequestBodyReader {
-    private BufferedReader in = null;
+public final class RequestBodyReader {
+
 
     /**
-     * Class constructor.
-     * @param in    Stream to read from
-     */
-    RequestBodyReader(InputStream in) {
-        this.in = new BufferedReader(
-                    new InputStreamReader(in, StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Reads request body and returns it as a String.
+     * Reads all lines from stream as utf8 and returns a string representation
+     * of the contents.
      * 
-     * @return  String representation of the requestbody
+     * @param stream    a InputStream to read from
+     * @return          a String containing all lines
      * @throws IOException
      */
-    String readBody() throws IOException {
-        return in.lines().collect(Collectors.joining("\n"));
+    public static String parse(InputStream stream) throws IOException {
+        try(BufferedReader in = new BufferedReader(
+            new InputStreamReader( stream, StandardCharsets.UTF_8)))
+        {
+            return in.lines().collect(Collectors.joining("\n"));
+        }
     }
+
+
     
 }
