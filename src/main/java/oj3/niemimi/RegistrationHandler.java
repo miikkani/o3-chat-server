@@ -7,15 +7,18 @@ import com.sun.net.httpserver.Headers;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
+import java.util.logging.Logger; 
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class RegistrationHandler implements HttpHandler {
     private ChatAuthenticator auth;
+    private Logger log;
 
     RegistrationHandler(ChatAuthenticator auth) {
         this.auth = auth;
+        log = Logger.getLogger("chatserver");
 
     }
 
@@ -23,7 +26,7 @@ public class RegistrationHandler implements HttpHandler {
      * Handles client requests to registrate to chatserver. 
      */
     public void handle(HttpExchange ex) {
-        System.out.println("Start HANDLE..");
+        log.info("start HANDLE..");
         int resCode = HttpURLConnection.HTTP_OK;
         int messageBytes = -1;
         String response = null;
@@ -50,8 +53,7 @@ public class RegistrationHandler implements HttpHandler {
                 requestBody = RequestBodyReader.parse(ex.getRequestBody());
 
                 /* Logging */
-                System.out.print("in RegistrationHandler, user posted :\n"
-                    + requestBody);
+                log.info("\nuser posted :\n" + requestBody + "\n");
 
                 JSONObject clientJson = new JSONObject(requestBody);
 
@@ -75,7 +77,7 @@ public class RegistrationHandler implements HttpHandler {
                 }
 
                 /* Logging */
-                System.out.print(" hasWhiteSpaces(un,pw): "
+                log.info(" hasWhiteSpaces(un,pw): "
                     + usernameHasWhiteSpaces
                     + " " + passwordHasWhiteSpaces);
 
@@ -83,15 +85,22 @@ public class RegistrationHandler implements HttpHandler {
                     resCode = HttpURLConnection.HTTP_BAD_REQUEST;
                 } else {
                     
-                    System.out.println(" -> registering "
-                            + "username: " + username 
-                            + "password: " + password 
-                            + "email: " + email); 
+                    log.info("""
+                    
+                                trying to register...
+                                username: %s
+                                password: %s
+                                email: %s
+
+                            """.formatted(username,password,email)); 
 
                             /* Finally try to add user credentials */
                     boolean success = auth.addUser( username, password, email);
 
-                    if(!success) resCode = HttpURLConnection.HTTP_BAD_REQUEST;
+                    if(!success){
+                     resCode = HttpURLConnection.HTTP_BAD_REQUEST;
+                     log.warning("user already exists.");
+                    }
                 }
 
                 } else {

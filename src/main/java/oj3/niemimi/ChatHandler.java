@@ -4,28 +4,32 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.Headers;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
-import java.nio.charset.Charset;
-//import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.time.Instant;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.io.OutputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class ChatHandler implements HttpHandler {
-    private ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
+    private ArrayList<ChatMessage> messages;
+    private Logger log;
+    private ChatDatabase db;
+
+    public ChatHandler() {
+        log = Logger.getLogger("chatserver");
+        db = ChatDatabase.getInstance();
+    }
 
 
     public void handle(HttpExchange ex) {
@@ -37,19 +41,22 @@ public class ChatHandler implements HttpHandler {
             Headers responseHeaders = ex.getResponseHeaders();
 
         try {
-
             /**
              * Handle GET 
-             * 
              */
             if(ex.getRequestMethod().equalsIgnoreCase("GET")) {
+                long defaultTime = Instant.now()
+                    .minus(Duration.ofHours(24L))
+                    .toEpochMilli();
+
+                messages = db.getMessages(defaultTime);
                 if(!messages.isEmpty()) {
                     JSONArray response = new JSONArray();
                     for(ChatMessage m: messages) {
                         response.put(
                             new JSONObject()
                                 .put("user", m.getUsername())
-                                .put("message", m.getMessage())
+                                .put("message", m.getText())
                                 .put("sent", m.getUTC())
                         );
                     }
@@ -57,16 +64,10 @@ public class ChatHandler implements HttpHandler {
                     bytes = responseBody
                             .getBytes(StandardCharsets.UTF_8).length;
 
-                    responseHeaders
-                        .set("Content-Type", "application/json; charset=utf-8");
-
-
-
-
+                    responseHeaders.set("Content-Type", "application/json");
                 } else {
                     responseCode = HttpURLConnection.HTTP_NO_CONTENT;
                 }
-            
 
             /**
              * Handle POST 
@@ -76,7 +77,7 @@ public class ChatHandler implements HttpHandler {
                 String contentType = requestHeaders.getFirst("Content-Type");
 
                 /* Logging */
-                System.out.println(contentType);
+                log.info("req_contentType: " + contentType);
 
                 /* content-type must match  */
                 if(contentType != null
@@ -98,15 +99,7 @@ public class ChatHandler implements HttpHandler {
                         .toInstant()
                         .toEpochMilli();
 
-                    ChatMessage m = new ChatMessage(username, message, millis);
-                    messages.add(m);
-
-                    /** 
-                     * Sort all messages to chronological order based on
-                     * timestamp. Otherwise network delays could affect
-                     * message order.
-                     */
-                    messages.sort(Comparator.comparingLong(ChatMessage::getMillis));
+                    db.addMessage(millis, username, message);
 
                 } else {
                     responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
@@ -117,35 +110,38 @@ public class ChatHandler implements HttpHandler {
              * Handle everything else 
              */
             } else {
-                responseBody = "Sorry, only tea here..";
+                responseBody = "I'm a teapot.";
                 bytes = responseBody.getBytes(StandardCharsets.UTF_8).length;
                 responseCode = 418;
             }
 
         } catch(JSONException jse ) {
             responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
-            System.out.println("Invalid JSON.");
+            log.warning("invalid JSON from client.");
         } catch(DateTimeParseException dpe ) {
             responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
-            System.out.println("Invalid TimeFormat in json.");
+            log.warning("invalid timeformat in client JSON.");
+        } catch (SQLException e) {
+            responseCode = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            log.log(Level.WARNING, e.getMessage(), e);
+
         } catch (IOException e){
             e.printStackTrace();
-            System.out.println("I/O error.");
+            log.severe("I/O error.");
         } finally {
-            System.out.println("@ChatHandler, finally-block");
+            log.info("sending response...");
             try {
                 ex.sendResponseHeaders(responseCode, bytes);
-                System.out.println("response sent...");
+                log.info("...responseheaders sent");
                 if(bytes > 0) {
                     ResponseWriter.writeBody(responseBody, ex.getResponseBody());
-                    System.out.println("body payload written..");
+                    log.info("...messagebody written");
                 }
+                log.info("...done");
             } catch(IOException ioe){
                 ioe.printStackTrace();
-                System.out.println("Error sending response");
+                log.severe("ERROR SENDING RESPONSE");
             }
-
-
         }
     }
 }

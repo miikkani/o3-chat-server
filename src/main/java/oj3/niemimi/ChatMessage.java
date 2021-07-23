@@ -7,13 +7,13 @@ import java.time.format.DateTimeFormatter;
 
 public class ChatMessage {
     private String username;
-    private String message;
+    private String text;
     private long sent;
 
 
     ChatMessage(String username, String message, long sent) {
         this.username = username;
-        this.message = message;
+        this.text = message;
         this.sent = sent;
     }
 
@@ -33,7 +33,7 @@ public class ChatMessage {
 
     public long getMillis(){return this.sent;} 
     public String getUsername(){return this.username;}
-    public String getMessage(){return this.message;}
+    public String getText(){return this.text;}
 
     
 }

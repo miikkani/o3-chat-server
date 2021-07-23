@@ -8,13 +8,20 @@ import com.sun.net.httpserver.HttpContext;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-//import java.net.http.HttpConnectTimeoutException;
 import java.security.KeyStore;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManagerFactory;
+
+import java.sql.SQLException;
+
+import java.util.logging.Logger;
+// import java.util.logging.SimpleFormatter;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
 /**
  * Chatserver 
  *
@@ -29,16 +36,38 @@ import javax.net.ssl.TrustManagerFactory;
 public class ChatServer {
     final static int PORT = 8001;
     public static void main( String[] args ) {
+            /**
+             * TODO:
+             *  - read command line arguments for desired loggin level
+             */
+
+
+
+            Logger log = Logger.getLogger("chatserver");
         try {
+            /* setup logging */
+            FileHandler filehandler = new FileHandler("server.log");
+            // filehandler.setFormatter(new SimpleFormatter());
+            filehandler.setFormatter(new MyFormatter());
+            ConsoleHandler consolehandler = new ConsoleHandler();
+            consolehandler.setFormatter(new MyFormatter());
+            log.setLevel(Level.ALL);
+            log.addHandler(filehandler);
+            log.addHandler(consolehandler);
+            log.setUseParentHandlers(false);
+            System.out.println("Using logging level: " + log.getLevel() + "\n");
+            log.info("log file: 'server.log'");
+
+            /* start initializing server */
             HttpsServer server = HttpsServer.create(
                                 new InetSocketAddress(PORT), 0);
-            System.out.println("server port: " + PORT);
+            log.info("using port: " + PORT);
             SSLContext sslContext = chatServerSSLContext();
 
             server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
                 public void configure(HttpsParameters params) {
                     InetSocketAddress remote = params.getClientAddress();
-                    System.out.println(remote + " connected...");
+                    log.info(remote + " connected...");
                     SSLContext c = getSSLContext();
                     SSLParameters sslparams = c.getDefaultSSLParameters();
                     params.setSSLParameters(sslparams);
@@ -54,26 +83,32 @@ public class ChatServer {
                                     new ChatHandler());
 
             chatContext.setAuthenticator(cauth);
-            System.out.println("/chat context created...");
+            log.info("/chat context created...");
 
             /* create path: /registration    */
             server.createContext(
                 "/registration",
                 new RegistrationHandler(cauth));
-            System.out.println("/registration context created...");
+            log.info("/registration context created...");
 
+            /* connect to database */
+            ChatDatabase.getInstance().open("chat.db");
 
+            /* start ChatServer in thread */
             server.setExecutor(null);
             server.start();
-            System.out.println("server started...");
+            log.info("server started...");
 
 
         } catch (IOException e) {
             e.printStackTrace();
-            System.out.println("IO error. Unable to create server.");
+            log.severe("IO error. Unable to create server.");
+        } catch (SQLException sqe) {
+            sqe.printStackTrace();
+            log.severe("Database error.");
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error creating server.");
+            log.severe("Error creating server.");
         }
 
     }
