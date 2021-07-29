@@ -41,8 +41,7 @@ public class RegistrationHandler implements HttpHandler {
             if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
                 String contentType = requestHeaders.getFirst("Content-Type");
 
-                /* Logging */
-                System.out.println(contentType);
+                log.info("POST Content-Type: " + contentType);
 
                 /* content-type must match first */
                 if(contentType != null
@@ -104,28 +103,30 @@ public class RegistrationHandler implements HttpHandler {
                 }
 
                 } else {
-                    System.out.println("Wrong content-type or missing");
+                    log.warning("Wrong content-type or missing");
                     resCode = HttpURLConnection.HTTP_BAD_REQUEST;
                 }
             /* Other than POST request */
             } else resCode = HttpURLConnection.HTTP_BAD_REQUEST; 
 
         } catch(JSONException jse) {
-            jse.printStackTrace();
-            System.out.println("\nJSON is not valid.");
+            // jse.printStackTrace();
+            log.warning("JSON is not valid.");
             response = "JSON is not valid.";
             messageBytes = response.getBytes(StandardCharsets.UTF_8).length;
             resCode = HttpURLConnection.HTTP_BAD_REQUEST;
 
         } catch(IOException ioe) {
             ioe.printStackTrace();
-            System.out.println("\nI/O Error during registration.");
+            log.severe(ioe.getLocalizedMessage());
+            log.severe("I/O Error during registration.");
 
         } catch(Exception e) {
             e.printStackTrace();
-            System.out.println("\nError during registration.");
+            log.severe(e.getLocalizedMessage());
+            log.severe("Error during registration.");
         } finally {
-            System.out.println("@RegistrationHandler, finally-block");
+            log.info("@RegistrationHandler, finally-block");
             try {
                 if(response != null) {
                     responseHeaders.set(
@@ -133,18 +134,19 @@ public class RegistrationHandler implements HttpHandler {
                         "text/plain; charset=utf-8");
                 } 
                 ex.sendResponseHeaders(resCode, messageBytes);
-                System.out.println("response sent...");
+                log.info("response sent...");
                 
                 if(response != null) {
                     ResponseWriter.writeBody(response, ex.getResponseBody());
-                    System.out.println("body payload written..");
+                    log.info("body payload written..");
                 }
             } catch(IOException ioe){
                 ioe.printStackTrace();
-                System.out.println("Error sending response");
+                log.severe(ioe.getLocalizedMessage());
+                log.severe("Error sending response");
             }
 
         }
-        System.out.println("Handle..DONE");
+        log.info("Handle..DONE");
     }
 }

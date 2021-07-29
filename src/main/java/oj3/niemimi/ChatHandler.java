@@ -11,6 +11,8 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -37,6 +39,8 @@ public class ChatHandler implements HttpHandler {
             String responseBody = null;
             int responseCode = HttpURLConnection.HTTP_OK;
             int bytes = -1;
+            long time;
+            long latest = 0;
             Headers requestHeaders = ex.getRequestHeaders();
             Headers responseHeaders = ex.getResponseHeaders();
 
@@ -45,11 +49,30 @@ public class ChatHandler implements HttpHandler {
              * Handle GET 
              */
             if(ex.getRequestMethod().equalsIgnoreCase("GET")) {
-                long defaultTime = Instant.now()
-                    .minus(Duration.ofHours(24L))
-                    .toEpochMilli();
+                String ifModified = requestHeaders
+                    .getFirst("If-Modified-Since");
 
-                messages = db.getMessages(defaultTime);
+                log.info(ifModified);
+
+                DateTimeFormatter formatter = DateTimeFormatter
+                    .ofPattern("EEE',' dd MMM yyyy HH:mm:ss.SSS zzz");
+
+                if(ifModified != null) {
+                    time = ZonedDateTime
+                        .parse(ifModified, formatter)
+                        .toInstant()
+                        .toEpochMilli();
+
+                } else {
+                    time = Instant.now()
+                        .minus(Duration.ofHours(24L))
+                        .toEpochMilli();
+                }
+                log.info("time: " + time);
+
+                messages = db.getMessages(time);
+
+                log.info(messages.toString());
                 if(!messages.isEmpty()) {
                     JSONArray response = new JSONArray();
                     for(ChatMessage m: messages) {
@@ -59,12 +82,24 @@ public class ChatHandler implements HttpHandler {
                                 .put("message", m.getText())
                                 .put("sent", m.getUTC())
                         );
+                        latest = m.getMillis();
+                        log.info("latest: " + latest);
                     }
+                    log.info(response.toString());
+                    String lastModified = "";
+
+                    ZonedDateTime latestDate = ZonedDateTime.ofInstant(
+                        Instant.ofEpochMilli(latest), ZoneId.of("GMT"));
+                    lastModified = latestDate.format(formatter);
+
                     responseBody = response.toString();
                     bytes = responseBody
                             .getBytes(StandardCharsets.UTF_8).length;
 
+                            log.info("bytes: " + bytes);
+
                     responseHeaders.set("Content-Type", "application/json");
+                    responseHeaders.set("Last-Modified", lastModified);
                 } else {
                     responseCode = HttpURLConnection.HTTP_NO_CONTENT;
                 }
@@ -120,17 +155,23 @@ public class ChatHandler implements HttpHandler {
             log.warning("invalid JSON from client.");
         } catch(DateTimeParseException dpe ) {
             responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
-            log.warning("invalid timeformat in client JSON.");
+            dpe.printStackTrace();
+            log.warning(dpe.getLocalizedMessage());
+            log.warning("Could not parse dateformat.");
         } catch (SQLException e) {
             responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
             log.log(Level.WARNING, e.getMessage(), e);
-
         } catch (IOException e){
             e.printStackTrace();
             log.severe("I/O error.");
+        } catch(Exception e) {
+            responseCode = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            e.printStackTrace();
+            log.severe(e.getLocalizedMessage());
         } finally {
             log.info("sending response...");
             try {
+                log.info("bb: " + bytes);
                 ex.sendResponseHeaders(responseCode, bytes);
                 log.info("...responseheaders sent");
                 if(bytes > 0) {

@@ -50,7 +50,8 @@ public class ChatServer {
             filehandler.setFormatter(new MyFormatter());
             ConsoleHandler consolehandler = new ConsoleHandler();
             consolehandler.setFormatter(new MyFormatter());
-            log.setLevel(Level.ALL);
+            // log.setLevel(Level.ALL);
+            log.setLevel(Level.WARNING);
             log.addHandler(filehandler);
             log.addHandler(consolehandler);
             log.setUseParentHandlers(false);
