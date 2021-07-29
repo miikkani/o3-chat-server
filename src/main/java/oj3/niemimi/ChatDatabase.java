@@ -11,6 +11,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.ArrayList;
 
+import java.util.Base64;
+import java.security.SecureRandom;
+import org.apache.commons.codec.digest.Crypt;
+
 public class ChatDatabase {
     private static ChatDatabase db;
     private Logger log;
@@ -49,7 +53,10 @@ public class ChatDatabase {
     }
 
     /**
-     * Builds new database with empty tables.
+     * Builds new database with empty tables. Tables are created if there
+     * is no database file found in server root folder. SQlite creates new
+     * database file automatically when trying to open non-existing file.
+     * This method uses the newly created empty database file.
      * 
      * @throws SQLException
      */
@@ -83,11 +90,11 @@ public class ChatDatabase {
 
 
     /**
-     * Checks user credentials from database.
+     * Compares given credentials to ones in database. 
      * 
      * @param username
      * @param password
-     * @return  true if username and password are correct
+     * @return  true if username and password are found and matching
      */
     public boolean checkCredentials(String username, String password) {
         log.info("params: " + username + " " + password);
@@ -104,9 +111,9 @@ public class ChatDatabase {
             if(rs.next()) {
                 String user = rs.getString(1);
                 String pw = rs.getString(2);
-                log.info(user + " " + pw);
-                ok = pw.equals(password);
-                log.info("ok = " + ok);
+                log.info("from db: " + user + "::" + pw);
+                ok = pw.equals(Crypt.crypt(password, pw));
+                log.info("matches (var: ok) -> " + ok);
             }
         } catch(SQLException sqe) {
             log.log(Level.SEVERE, "database error.\n " + sqe.getMessage(), sqe);
@@ -126,6 +133,13 @@ public class ChatDatabase {
      */
     public boolean addUser(String username, String password, String email) {
             boolean ok = false;
+
+            // create salt and encrypt password  
+            byte[] bytes = new byte[13];
+            new SecureRandom().nextBytes(bytes);
+            String salt = new String(Base64.getEncoder().encode(bytes));
+            String saltedPassword = Crypt.crypt(password, "$6$" + salt );
+
             String query = """
                 INSERT OR IGNORE INTO user (name, email, password)
                 VALUES (?, ?, ?)
@@ -133,7 +147,7 @@ public class ChatDatabase {
             try(PreparedStatement pstmt = connection.prepareStatement(query)) {
                 pstmt.setString(1, username);
                 pstmt.setString(2, email);
-                pstmt.setString(3, password);
+                pstmt.setString(3, saltedPassword);
                 int result = pstmt.executeUpdate();
                 if(result == 1) ok = true;
             } catch (SQLException e) {
@@ -164,6 +178,13 @@ public class ChatDatabase {
             }
         }
 
+        /**
+         * Constructs list of messages after given time.
+         * @param since     a long integer representing time since epoch in
+         *                  milliseconds
+         * @return
+         * @throws SQLException
+         */
     public ArrayList<ChatMessage> getMessages(long since) throws SQLException {
         ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
         String query = """
@@ -181,8 +202,6 @@ public class ChatDatabase {
                     ));
             }
         }
-
-
         return messages;
     }
 

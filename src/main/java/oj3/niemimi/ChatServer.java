@@ -27,7 +27,6 @@ import java.util.logging.Level;
  *
  * todo
  * - readerclass to static or factory
- * - proper logging (java built-in?)
  * - error checking > userRegistration
  * 
  * 
@@ -38,7 +37,7 @@ public class ChatServer {
     public static void main( String[] args ) {
             /**
              * TODO:
-             *  - read command line arguments for desired loggin level
+             *  - read command line arguments for desired logging level
              */
 
 

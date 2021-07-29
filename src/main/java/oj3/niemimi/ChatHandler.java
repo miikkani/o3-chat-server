@@ -122,7 +122,7 @@ public class ChatHandler implements HttpHandler {
             responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
             log.warning("invalid timeformat in client JSON.");
         } catch (SQLException e) {
-            responseCode = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
             log.log(Level.WARNING, e.getMessage(), e);
 
         } catch (IOException e){
