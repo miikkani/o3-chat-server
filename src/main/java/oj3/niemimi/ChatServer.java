@@ -35,23 +35,40 @@ import java.util.logging.Level;
 public class ChatServer {
     final static int PORT = 8001;
     public static void main( String[] args ) {
-            /**
-             * TODO:
-             *  - read command line arguments for desired logging level
-             */
+            String logLevel = "OFF";
+            try{
+            if(args.length == 1) {
+                logLevel = switch(args[0]) {
+                    case "-v" -> "SEVERE";
+                    case "-vv" -> "WARNING";
+                    case "-vvv" -> "ALL";
+                    default -> throw new IllegalArgumentException(
+                        """
+                        Usage: java -jar chat-server-file [OPTION]
 
+                        Set level for logging. Writes to 'server.log' file
+                        and prints same information to active console.
 
+                        -v    only level of 'SEVERE' 
+                        -vv   level of 'WARNING' and above
+                        -vvv  level of 'ALL'. Log everything.
+                        """
+                    );
+                };
+            }
+        } catch(IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+            return;
+        }
 
             Logger log = Logger.getLogger("chatserver");
         try {
             /* setup logging */
             FileHandler filehandler = new FileHandler("server.log");
-            // filehandler.setFormatter(new SimpleFormatter());
             filehandler.setFormatter(new MyFormatter());
             ConsoleHandler consolehandler = new ConsoleHandler();
             consolehandler.setFormatter(new MyFormatter());
-            // log.setLevel(Level.ALL);
-            log.setLevel(Level.WARNING);
+            log.setLevel(Level.parse(logLevel));
             log.addHandler(filehandler);
             log.addHandler(consolehandler);
             log.setUseParentHandlers(false);
