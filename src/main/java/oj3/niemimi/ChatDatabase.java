@@ -11,8 +11,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.ArrayList;
 
-import java.util.Base64;
-import java.security.SecureRandom;
 import org.apache.commons.codec.digest.Crypt;
 
 public class ChatDatabase {
@@ -44,7 +42,7 @@ public class ChatDatabase {
     public void open(String path) throws SQLException {
         File database = new File(path);
         boolean hasDatabase = database.exists();
-        connection = DriverManager.getConnection("jdbc:sqlite:chat.db");
+        connection = DriverManager.getConnection("jdbc:sqlite:" + path);
         log.info( "Database connection established to '" + path + "' ...");
         if(!hasDatabase) {
             createTables();
@@ -73,11 +71,10 @@ public class ChatDatabase {
 
         String messageTable = """
             CREATE TABLE message (
+                id          INTEGER    PRIMARY KEY,
                 sent        INTEGER    NOT NULL,
                 nick        TEXT       NOT NULL,
-                text        TEXT       NOT NULL,
-
-                PRIMARY KEY (sent)
+                text        TEXT       NOT NULL
             )
             """;
 
@@ -133,12 +130,7 @@ public class ChatDatabase {
      */
     public boolean addUser(String username, String password, String email) {
             boolean ok = false;
-
-            // create salt and encrypt password  
-            byte[] bytes = new byte[13];
-            new SecureRandom().nextBytes(bytes);
-            String salt = new String(Base64.getEncoder().encode(bytes));
-            String saltedPassword = Crypt.crypt(password, "$6$" + salt );
+            String saltedPassword = Crypt.crypt(password);
 
             String query = """
                 INSERT OR IGNORE INTO user (name, email, password)
@@ -178,17 +170,17 @@ public class ChatDatabase {
             }
         }
 
-        /**
-         * Constructs list of messages after given time.
-         * @param since     a long integer representing time since epoch in
-         *                  milliseconds
-         * @return
-         * @throws SQLException
-         */
+    /**
+     * Constructs list of messages after given time.
+     * @param since     a long integer representing time since epoch in
+     *                  milliseconds
+     * @return
+     * @throws SQLException
+     */
     public ArrayList<ChatMessage> getMessages(long since) throws SQLException {
         ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
         String query = """
-            SELECT * FROM message
+            SELECT nick,text,sent FROM message
             WHERE sent > %d
             ORDER BY sent
             """.formatted(since);
@@ -196,9 +188,9 @@ public class ChatDatabase {
             ResultSet rs = stmt.executeQuery(query);
             while(rs.next()) {
                 messages.add(new ChatMessage(
+                    rs.getString(1),
                     rs.getString(2),
-                    rs.getString(3),
-                    rs.getLong(1)
+                    rs.getLong(3)
                     ));
             }
         }

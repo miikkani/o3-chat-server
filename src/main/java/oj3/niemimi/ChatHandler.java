@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,17 +25,41 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class ChatHandler implements HttpHandler {
-    private ArrayList<ChatMessage> messages;
     private Logger log;
     private ChatDatabase db;
+    public static ConcurrentHashMap<Long,String> ids;
+    public static int count;
 
     public ChatHandler() {
         log = Logger.getLogger("chatserver");
         db = ChatDatabase.getInstance();
+        ids = new ConcurrentHashMap<Long, String>(); //for fun stuff
     }
 
 
     public void handle(HttpExchange ex) {
+            // System.out.print(
+            //     "#### THREAD: " + Thread.currentThread().getId());
+
+            /* fun stuff for console */
+            // Long threadID = Thread.currentThread().getId();
+            // if(!ids.containsKey(threadID)) {
+            //     int thi = Integer.parseInt(Long.toString(threadID));
+            //     thi = 33 + (new java.util.Random().nextInt(126-33) + thi)%(126-33);
+            //     ids.put(threadID, Character.toString(thi));
+
+            //     System.out.println(
+            //         "\n\n   NEW THREAD no." + threadID
+            //         + "->(total: " + ids.size() + ")   \n");
+            //     count = 0;
+            // } else {
+            //     System.out.print(ids.get(threadID));
+            //     if(++count > 26) {
+            //         System.out.print("\n");
+            //         count = 0;
+            //     } 
+            // } 
+
             String requestBody = null;
             String responseBody = null;
             int responseCode = HttpURLConnection.HTTP_OK;
@@ -70,7 +95,7 @@ public class ChatHandler implements HttpHandler {
                 }
                 log.info("time: " + time);
 
-                messages = db.getMessages(time);
+                ArrayList<ChatMessage> messages = db.getMessages(time);
 
                 log.info(messages.toString());
                 if(!messages.isEmpty()) {
@@ -134,7 +159,12 @@ public class ChatHandler implements HttpHandler {
                         .toInstant()
                         .toEpochMilli();
 
-                    db.addMessage(millis, username, message);
+                    try {
+                        db.addMessage(millis, username, message);
+                    } catch(SQLException e) {
+                        log.log(Level.WARNING, e.getMessage(), e);
+                        responseCode = HttpURLConnection.HTTP_NOT_MODIFIED;
+                    }
 
                 } else {
                     responseCode = HttpURLConnection.HTTP_BAD_REQUEST;

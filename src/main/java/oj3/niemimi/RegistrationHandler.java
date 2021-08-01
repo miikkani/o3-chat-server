@@ -26,7 +26,9 @@ public class RegistrationHandler implements HttpHandler {
      * Handles client requests to registrate to chatserver. 
      */
     public void handle(HttpExchange ex) {
-        log.info("start HANDLE..");
+        // System.out.println(
+        //     "#### THREAD: " + Thread.currentThread().getId());
+
         int resCode = HttpURLConnection.HTTP_OK;
         int messageBytes = -1;
         String response = null;
