@@ -26,9 +26,6 @@ public class RegistrationHandler implements HttpHandler {
      * Handles client requests to registrate to chatserver. 
      */
     public void handle(HttpExchange ex) {
-        // System.out.println(
-        //     "#### THREAD: " + Thread.currentThread().getId());
-
         int resCode = HttpURLConnection.HTTP_OK;
         int messageBytes = -1;
         String response = null;
@@ -37,24 +34,20 @@ public class RegistrationHandler implements HttpHandler {
         Headers responseHeaders = ex.getResponseHeaders();
 
         try {
-            
-
             /* Register user to the server */
             if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
                 String contentType = requestHeaders.getFirst("Content-Type");
 
-                log.info("POST Content-Type: " + contentType);
+                log.finest("POST Content-Type: " + contentType);
 
                 /* content-type must match first */
                 if(contentType != null
                     && contentType.equalsIgnoreCase("application/json"))
                 {
-
-
                 requestBody = RequestBodyReader.parse(ex.getRequestBody());
 
                 /* Logging */
-                log.info("\nuser posted :\n" + requestBody + "\n");
+                log.finest("\nuser posted :\n" + requestBody + "\n");
 
                 JSONObject clientJson = new JSONObject(requestBody);
 
@@ -78,7 +71,7 @@ public class RegistrationHandler implements HttpHandler {
                 }
 
                 /* Logging */
-                log.info(" hasWhiteSpaces(un,pw): "
+                log.finest(" hasWhiteSpaces(un,pw): "
                     + usernameHasWhiteSpaces
                     + " " + passwordHasWhiteSpaces);
 
@@ -86,16 +79,16 @@ public class RegistrationHandler implements HttpHandler {
                     resCode = HttpURLConnection.HTTP_BAD_REQUEST;
                 } else {
                     
-                    log.info("""
+                    log.finest("""
                     
                                 trying to register...
                                 username: %s
                                 password: %s
                                 email: %s
 
-                            """.formatted(username,password,email)); 
+                            """.formatted(username,"<hidden>",email)); 
 
-                            /* Finally try to add user credentials */
+                    /* Finally try to add user credentials */
                     boolean success = auth.addUser( username, password, email);
 
                     if(!success){
@@ -112,23 +105,20 @@ public class RegistrationHandler implements HttpHandler {
             } else resCode = HttpURLConnection.HTTP_BAD_REQUEST; 
 
         } catch(JSONException jse) {
-            // jse.printStackTrace();
             log.warning("JSON is not valid.");
             response = "JSON is not valid.";
             messageBytes = response.getBytes(StandardCharsets.UTF_8).length;
             resCode = HttpURLConnection.HTTP_BAD_REQUEST;
-
         } catch(IOException ioe) {
             ioe.printStackTrace();
             log.severe(ioe.getLocalizedMessage());
             log.severe("I/O Error during registration.");
-
         } catch(Exception e) {
             e.printStackTrace();
             log.severe(e.getLocalizedMessage());
             log.severe("Error during registration.");
         } finally {
-            log.info("@RegistrationHandler, finally-block");
+            log.finest("@RegistrationHandler, finally-block");
             try {
                 if(response != null) {
                     responseHeaders.set(
@@ -136,19 +126,18 @@ public class RegistrationHandler implements HttpHandler {
                         "text/plain; charset=utf-8");
                 } 
                 ex.sendResponseHeaders(resCode, messageBytes);
-                log.info("response sent...");
+                log.finest("response sent...");
                 
                 if(response != null) {
                     ResponseWriter.writeBody(response, ex.getResponseBody());
-                    log.info("body payload written..");
+                    log.finest("body payload written..");
                 }
             } catch(IOException ioe){
                 ioe.printStackTrace();
                 log.severe(ioe.getLocalizedMessage());
                 log.severe("Error sending response");
             }
-
         }
-        log.info("Handle..DONE");
+        log.finest("Handle..DONE");
     }
 }

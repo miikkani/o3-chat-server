@@ -16,7 +16,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,45 +26,21 @@ import org.json.JSONObject;
 public class ChatHandler implements HttpHandler {
     private Logger log;
     private ChatDatabase db;
-    public static ConcurrentHashMap<Long,String> ids;
     public static int count;
 
     public ChatHandler() {
         log = Logger.getLogger("chatserver");
         db = ChatDatabase.getInstance();
-        ids = new ConcurrentHashMap<Long, String>(); //for fun stuff
     }
 
-
     public void handle(HttpExchange ex) {
-            // System.out.print(
-            //     "#### THREAD: " + Thread.currentThread().getId());
-
-            /* fun stuff for console */
-            // Long threadID = Thread.currentThread().getId();
-            // if(!ids.containsKey(threadID)) {
-            //     int thi = Integer.parseInt(Long.toString(threadID));
-            //     thi = 33 + (new java.util.Random().nextInt(126-33) + thi)%(126-33);
-            //     ids.put(threadID, Character.toString(thi));
-
-            //     System.out.println(
-            //         "\n\n   NEW THREAD no." + threadID
-            //         + "->(total: " + ids.size() + ")   \n");
-            //     count = 0;
-            // } else {
-            //     System.out.print(ids.get(threadID));
-            //     if(++count > 26) {
-            //         System.out.print("\n");
-            //         count = 0;
-            //     } 
-            // } 
-
-            String requestBody = null;
-            String responseBody = null;
             int responseCode = HttpURLConnection.HTTP_OK;
             int bytes = -1;
             long time;
             long latest = 0;
+
+            String requestBody = null;
+            String responseBody = null;
             Headers requestHeaders = ex.getRequestHeaders();
             Headers responseHeaders = ex.getResponseHeaders();
 
@@ -77,8 +52,6 @@ public class ChatHandler implements HttpHandler {
                 String ifModified = requestHeaders
                     .getFirst("If-Modified-Since");
 
-                log.info(ifModified);
-
                 DateTimeFormatter formatter = DateTimeFormatter
                     .ofPattern("EEE',' dd MMM yyyy HH:mm:ss.SSS zzz");
 
@@ -87,17 +60,16 @@ public class ChatHandler implements HttpHandler {
                         .parse(ifModified, formatter)
                         .toInstant()
                         .toEpochMilli();
-
                 } else {
                     time = Instant.now()
                         .minus(Duration.ofHours(24L))
                         .toEpochMilli();
                 }
-                log.info("time: " + time);
+                log.finest("time: " + time);
 
                 ArrayList<ChatMessage> messages = db.getMessages(time);
 
-                log.info(messages.toString());
+                log.finest(messages.toString());
                 if(!messages.isEmpty()) {
                     JSONArray response = new JSONArray();
                     for(ChatMessage m: messages) {
@@ -108,9 +80,9 @@ public class ChatHandler implements HttpHandler {
                                 .put("sent", m.getUTC())
                         );
                         latest = m.getMillis();
-                        log.info("latest: " + latest);
+                        log.finest("latest: " + latest);
                     }
-                    log.info(response.toString());
+                    log.finest(response.toString());
                     String lastModified = "";
 
                     ZonedDateTime latestDate = ZonedDateTime.ofInstant(
@@ -121,7 +93,7 @@ public class ChatHandler implements HttpHandler {
                     bytes = responseBody
                             .getBytes(StandardCharsets.UTF_8).length;
 
-                            log.info("bytes: " + bytes);
+                    log.finest("bytes: " + bytes);
 
                     responseHeaders.set("Content-Type", "application/json");
                     responseHeaders.set("Last-Modified", lastModified);
@@ -133,11 +105,10 @@ public class ChatHandler implements HttpHandler {
              * Handle POST 
              */
             } else if(ex.getRequestMethod().equalsIgnoreCase("POST")) {
-
                 String contentType = requestHeaders.getFirst("Content-Type");
 
                 /* Logging */
-                log.info("req_contentType: " + contentType);
+                log.finest("req_contentType: " + contentType);
 
                 /* content-type must match  */
                 if(contentType != null
@@ -149,7 +120,6 @@ public class ChatHandler implements HttpHandler {
                     String username = clientJson.getString("user");
                     String message = clientJson.getString("message");
                     String sent = clientJson.getString("sent");
-
                     
                     DateTimeFormatter formatter = DateTimeFormatter
                         .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX");
@@ -165,17 +135,15 @@ public class ChatHandler implements HttpHandler {
                         log.log(Level.WARNING, e.getMessage(), e);
                         responseCode = HttpURLConnection.HTTP_NOT_MODIFIED;
                     }
-
                 } else {
                     responseCode = HttpURLConnection.HTTP_BAD_REQUEST;
                 }
-            
 
             /**
              * Handle everything else 
              */
             } else {
-                responseBody = "I'm a teapot.";
+                responseBody = "I'm a teapot aka not implemented :)";
                 bytes = responseBody.getBytes(StandardCharsets.UTF_8).length;
                 responseCode = 418;
             }
@@ -199,16 +167,16 @@ public class ChatHandler implements HttpHandler {
             e.printStackTrace();
             log.severe(e.getLocalizedMessage());
         } finally {
-            log.info("sending response...");
+            log.finest("sending response...");
             try {
-                log.info("bb: " + bytes);
+                log.finest("bb: " + bytes);
                 ex.sendResponseHeaders(responseCode, bytes);
-                log.info("...responseheaders sent");
+                log.finest("...responseheaders sent");
                 if(bytes > 0) {
                     ResponseWriter.writeBody(responseBody, ex.getResponseBody());
-                    log.info("...messagebody written");
+                    log.finest("...messagebody written");
                 }
-                log.info("...done");
+                log.finest("...done");
             } catch(IOException ioe){
                 ioe.printStackTrace();
                 log.severe("ERROR SENDING RESPONSE");

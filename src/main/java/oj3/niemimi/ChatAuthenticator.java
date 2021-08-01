@@ -4,12 +4,9 @@ import java.util.logging.Logger;
 
 import com.sun.net.httpserver.BasicAuthenticator;
 
-
-
 public class ChatAuthenticator extends BasicAuthenticator{
     private ChatDatabase db;
     Logger log;
-
 
     public ChatAuthenticator() {
         super("chat");
@@ -17,21 +14,14 @@ public class ChatAuthenticator extends BasicAuthenticator{
         db = ChatDatabase.getInstance();
     }
 
-
-
     /**
      * Checks user authentication.
      * @return  true if authentication was successful
      */
     public boolean checkCredentials(String username, String password) {
         boolean ok = false;
-
-        log.info("validating user: " + username +"::" + password);
-
         ok = db.checkCredentials(username, password);
-
-        log.info("user authenticated: " + ok);
-
+        log.finest("user authenticated: " + ok);
         return ok;
     }
 
@@ -47,16 +37,14 @@ public class ChatAuthenticator extends BasicAuthenticator{
         boolean added = false;
         added = db.addUser(username, password, email);
         if(added) {
-            log.info("""
+            log.finest("""
             
                     %s :: %s
                     email: %s
                     registered.
 
-                """.formatted(username, password, email));
+                """.formatted(username, "<hidden>", email));
         }
         return added;
     }
-
-    
 }

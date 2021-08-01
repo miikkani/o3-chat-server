@@ -16,12 +16,10 @@ import org.apache.commons.codec.digest.Crypt;
 public class ChatDatabase {
     private static ChatDatabase db;
     private Logger log;
-
     public Connection connection;
 
     private ChatDatabase(){
         log = Logger.getLogger("chatserver");
-
     }
     
     public static synchronized ChatDatabase getInstance() {
@@ -85,7 +83,6 @@ public class ChatDatabase {
         }
     }
 
-
     /**
      * Compares given credentials to ones in database. 
      * 
@@ -94,7 +91,7 @@ public class ChatDatabase {
      * @return  true if username and password are found and matching
      */
     public boolean checkCredentials(String username, String password) {
-        log.info("params: " + username + " " + password);
+        log.finest("params: " + username + " " + password);
         boolean ok = false;
         String preparedQuery = """
             SELECT name, password FROM user
@@ -104,20 +101,15 @@ public class ChatDatabase {
         try(PreparedStatement pstmt = connection.prepareStatement(preparedQuery)) {
             pstmt.setString(1, username);
             ResultSet rs = pstmt.executeQuery();
-
             if(rs.next()) {
-                String user = rs.getString(1);
                 String pw = rs.getString(2);
-                log.info("from db: " + user + "::" + pw);
                 ok = pw.equals(Crypt.crypt(password, pw));
-                log.info("matches (var: ok) -> " + ok);
             }
         } catch(SQLException sqe) {
             log.log(Level.SEVERE, "database error.\n " + sqe.getMessage(), sqe);
         }
         return ok;
     }
-
 
     /**
      * Adds user to the database.
@@ -131,7 +123,6 @@ public class ChatDatabase {
     public boolean addUser(String username, String password, String email) {
             boolean ok = false;
             String saltedPassword = Crypt.crypt(password);
-
             String query = """
                 INSERT OR IGNORE INTO user (name, email, password)
                 VALUES (?, ?, ?)
@@ -196,5 +187,4 @@ public class ChatDatabase {
         }
         return messages;
     }
-
 }

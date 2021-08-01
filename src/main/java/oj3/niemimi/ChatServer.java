@@ -28,60 +28,85 @@ import java.sql.SQLException;
 
 /**
  * Chatserver 
- *
- * todo
- * - readerclass to static or factory
- * - error checking > userRegistration
- * 
- * 
  * 
  */
 public class ChatServer {
-    final static int PORT = 8001;
-    final static String DATABASE_FILE = "chat.db";
-    // final static String DATABASE_FILE = ":memory:";
+    private static int PORT = 8001;
+    private static String DATABASE_FILE;
+    private static String CERTIFICATE;
+    private static String PASSWORD;
+
+    private static String LOG_FILE = "server.log";
+    private static boolean writeLog = false;
+    private static String LOG_LEVEL = "SEVERE";
+
+    private static final String howToUse = """
+Usage: java -jar chat-server-file.jar <DATABASE> <CERT> <PASSWORD> [debug={LEVEL}]
+
+    DATABASE     database file
+    CERT         JKS certificate file
+    PASSWORD     certificate password
+
+    Optional:
+    debug={LEVEL}    print additional logging information where LEVEL={1|2|3}.
+                     Also writes a log file 'server.log' to current dir.
+                        LEVEL
+                          1    warnings
+                          2    informative
+                          3    detail, lots of data. Use carefully
+
+Examples:
+    java -jar chat-server-file.jar chat.db keystore.jks password
+        Use given database and certificate.
+
+    java -jar chat-server-file.jar chat.db keystore.jks password debug=3
+        Write lots of information to 'server.log' file
+""";
     public static void main( String[] args ) {
-            // System.out.println(
-            //     "#### THREAD: " + Thread.currentThread().getId());
-
-            String logLevel = "SEVERE";
-            try{
-                if(args.length == 1) {
-                    logLevel = switch(args[0]) {
-                        case "-v" -> "WARNING";
-                        case "-vv" -> "ALL";
-                        default -> throw new IllegalArgumentException(
-                            """
-                            Usage: java -jar chat-server-file [OPTION]
-
-                            -v   log warnings
-                            -vv  log everything
-
-                            Log more information. Writes to 'server.log' file
-                            and prints same information to active console.
-                            
-                            """
-                        );
-                    };
+        /* read command line arguments */
+        try {
+            if(args.length >= 3) {
+                DATABASE_FILE = args[0];
+                if(new java.io.File(args[1]).exists()) {
+                    CERTIFICATE = args[1];
+                } else throw new IllegalArgumentException("Certificate file '"
+                                    + args[1] + "' not found!\n " + howToUse);
+                PASSWORD = args[2];
+                if(args.length >= 4) {
+                        String[] level = args[3].split("debug=");
+                        if(level.length < 2) throw new IllegalArgumentException(howToUse);
+                        LOG_LEVEL = switch(level[1]) {
+                            case "1" -> "WARNING";
+                            case "2" -> "INFO";
+                            case "3" -> "FINEST";
+                            default -> throw new IllegalArgumentException(howToUse);
+                        };
+                        writeLog = true;
                 }
-            } catch(IllegalArgumentException e) {
-                System.out.println(e.getMessage());
-                return;  // exit program
+            } else {
+                System.out.println(howToUse);
+                return;
             }
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+            return;
+        }
 
         Logger log = Logger.getLogger("chatserver");
         try {
             /* configure logging */
-            FileHandler filehandler = new FileHandler("server.log");
-            filehandler.setFormatter(new MyFormatter());
             ConsoleHandler consolehandler = new ConsoleHandler();
             consolehandler.setFormatter(new MyFormatter());
-            log.setLevel(Level.parse(logLevel));
-            log.addHandler(filehandler);
+            log.setLevel(Level.parse(LOG_LEVEL));
+            if(writeLog) {
+                FileHandler filehandler = new FileHandler(LOG_FILE);
+                filehandler.setFormatter(new MyFormatter());
+                log.addHandler(filehandler);
+            }
             log.addHandler(consolehandler);
             log.setUseParentHandlers(false);
-            System.out.println("Using logging level: " + log.getLevel() + "\n");
-            log.info("log file: 'server.log'");
+            log.info("Using logging level: " + log.getLevel());
+            if(writeLog) log.info("WRITING LOG TO \"" + LOG_FILE + "\"");
 
             /* start initializing server */
             HttpsServer server = HttpsServer.create(
@@ -92,16 +117,12 @@ public class ChatServer {
             server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
                 public void configure(HttpsParameters params) {
                     InetSocketAddress remote = params.getClientAddress();
-                    log.info(remote + " connected...");
+                    log.finest(remote + " connected...");
                     SSLContext c = getSSLContext();
                     SSLParameters sslparams = c.getDefaultSSLParameters();
                     params.setSSLParameters(sslparams);
                 } 
-            }
-            );
-
-           
-            
+            });
 
             /* initialize authenicator for server */
             ChatAuthenticator cauth = new ChatAuthenticator();
@@ -121,15 +142,16 @@ public class ChatServer {
             log.info("/registration context created...");
 
             /* connect to database */
-            // ChatDatabase.getInstance().open("chat.db");
             ChatDatabase.getInstance().open(DATABASE_FILE);
 
             /* start ChatServer using threadpool */
-            // ExecutorService pool = Executors.newFixedThreadPool(30);
             ExecutorService pool = Executors.newCachedThreadPool();
             server.setExecutor(pool);
             server.start();
             log.info("server started...");
+            System.out.println("server started...");
+            System.out.println("address: https://localhost:" + PORT);
+            System.out.println("enter '/quit' to shutdown...");
 
             /* wait keyboard input */
             boolean running = true;
@@ -142,24 +164,25 @@ public class ChatServer {
                 }
             }
             
-            log.info("server is shutting down..");
 
+            log.info("server shutting down...");
             server.stop(3);
             ChatDatabase.getInstance().connection.close();
             pool.shutdownNow();
 
             log.info("server stopped successfully.");
-            System.out.println("server stopped.");
 
         } catch (IOException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
             log.log(Level.SEVERE, e.getMessage(), e);
         } catch (SQLException sqe) {
             sqe.printStackTrace();
             log.severe("Database error.");
         } catch (Exception e) {
             e.printStackTrace();
-            log.severe("Error creating server.");
+            log.severe("SERVER ERROR");
+        } finally {
+            System.out.println("server stopped.");
         }
 
     }
@@ -170,9 +193,9 @@ public class ChatServer {
      * @return ssl - SSLContext
      */
     private static SSLContext chatServerSSLContext() throws Exception {
-        char[] passphrase = "password".toCharArray();
+        char[] passphrase = PASSWORD.toCharArray();
         KeyStore ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream("keystore.jks"), passphrase);
+        ks.load(new FileInputStream(CERTIFICATE), passphrase);
 
         KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
         kmf.init(ks, passphrase);
