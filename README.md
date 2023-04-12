@@ -1,8 +1,11 @@
-# Programming 3 code repository
+# Programming 3 course project - Chat Server
 
 * Miikka Niemi
 * 1948190
 * email: niemimi@student.oulu.fi
+
+## About
+This program implements simple web server for IRC-like chat. Client is not included.
 
 ## How to build and run
 
